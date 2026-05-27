@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>자재단가 대시보드</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --surface-soft: #eef3f8;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d8e0ea;
+      --blue: #2563eb;
+      --green: #0f8b62;
+      --amber: #b7791f;
+      --red: #c2412d;
+      --shadow: 0 10px 24px rgba(23, 32, 51, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Segoe UI", "Noto Sans KR", Arial, sans-serif;
+      letter-spacing: 0;
+    }
+
+    .app-shell {
+      width: min(1440px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 40px;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: end;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      line-height: 1.2;
+      font-weight: 760;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .source-pill {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 6px;
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(150px, 1fr)) auto;
+      gap: 12px;
+      align-items: end;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    select,
+    button {
+      width: 100%;
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      font-size: 14px;
+    }
+
+    select { padding: 0 10px; }
+
+    button {
+      padding: 0 14px;
+      background: var(--ink);
+      color: #fff;
+      border-color: var(--ink);
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    button:hover { background: #263248; }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .kpi {
+      min-height: 112px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      display: grid;
+      align-content: space-between;
+      gap: 8px;
+    }
+
+    .kpi span {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .kpi strong {
+      display: block;
+      font-size: 25px;
+      line-height: 1.18;
+      overflow-wrap: anywhere;
+    }
+
+    .kpi small {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+      min-height: 17px;
+    }
+
+    .charts {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      min-width: 0;
+    }
+
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 16px;
+      line-height: 1.3;
+    }
+
+    .chart-frame {
+      position: relative;
+      height: 300px;
+    }
+
+    .table-panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .table-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .table-head h2 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .table-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .table-scroll {
+      overflow: auto;
+      max-height: 470px;
+    }
+
+    table {
+      width: 100%;
+      min-width: 920px;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: var(--surface-soft);
+      z-index: 1;
+      color: #344054;
+      font-size: 12px;
+    }
+
+    td.num,
+    th.num { text-align: right; }
+
+    tbody tr:hover { background: #f8fafc; }
+
+    .empty {
+      padding: 32px 16px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    @media (max-width: 1100px) {
+      .filters { grid-template-columns: repeat(3, minmax(150px, 1fr)); }
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .charts { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 720px) {
+      .app-shell { width: min(100% - 20px, 1440px); padding-top: 18px; }
+      header { grid-template-columns: 1fr; }
+      h1 { font-size: 23px; }
+      .source-pill { white-space: normal; }
+      .filters { grid-template-columns: 1fr; padding: 12px; }
+      .kpis { grid-template-columns: 1fr; }
+      .chart-frame { height: 260px; }
+      .table-head { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header>
+      <div>
+        <h1>자재단가 대시보드</h1>
+        <p class="subtitle">2022년부터 2024년까지의 자재 단가, 발주수량, 공급업체별 흐름을 필터로 탐색합니다.</p>
+      </div>
+      <div class="source-pill">자재단가_2022-2024.csv · <span id="sourceCount">302</span>행</div>
+    </header>
+
+    <section class="filters" aria-label="대시보드 필터">
+      <label>시작월
+        <select id="startDate"></select>
+      </label>
+      <label>종료월
+        <select id="endDate"></select>
+      </label>
+      <label>카테고리
+        <select id="categoryFilter"></select>
+      </label>
+      <label>자재명
+        <select id="materialFilter"></select>
+      </label>
+      <label>공급업체
+        <select id="vendorFilter"></select>
+      </label>
+      <button id="resetButton" type="button">초기화</button>
+    </section>
+
+    <section class="kpis" aria-label="핵심 지표">
+      <article class="kpi">
+        <span>평균 단가</span>
+        <strong id="avgPrice">-</strong>
+        <small id="avgPriceSub">필터 적용 기준</small>
+      </article>
+      <article class="kpi">
+        <span>총 발주수량</span>
+        <strong id="totalQty">-</strong>
+        <small id="totalQtySub">전체 합계</small>
+      </article>
+      <article class="kpi">
+        <span>최고 단가 자재</span>
+        <strong id="topMaterial">-</strong>
+        <small id="topMaterialSub">-</small>
+      </article>
+      <article class="kpi">
+        <span>단가 변동폭 최대</span>
+        <strong id="volatileMaterial">-</strong>
+        <small id="volatileMaterialSub">-</small>
+      </article>
+    </section>
+
+    <section class="charts" aria-label="시각화 차트">
+      <article class="panel">
+        <h2>월별 평균 단가 추이</h2>
+        <div class="chart-frame"><canvas id="monthlyChart"></canvas></div>
+      </article>
+      <article class="panel">
+        <h2>카테고리별 평균 단가</h2>
+        <div class="chart-frame"><canvas id="categoryChart"></canvas></div>
+      </article>
+      <article class="panel">
+        <h2>공급업체별 발주수량</h2>
+        <div class="chart-frame"><canvas id="vendorChart"></canvas></div>
+      </article>
+      <article class="panel">
+        <h2>자재별 단가 변동폭 Top 10</h2>
+        <div class="chart-frame"><canvas id="volatilityChart"></canvas></div>
+      </article>
+    </section>
+
+    <section class="table-panel" aria-label="필터링된 데이터">
+      <div class="table-head">
+        <div>
+          <h2>상세 데이터</h2>
+          <p>단가 높은 순으로 정렬됩니다.</p>
+        </div>
+        <p id="tableSummary">-</p>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>날짜</th>
+              <th>자재코드</th>
+              <th>자재명</th>
+              <th>카테고리</th>
+              <th class="num">단가</th>
+              <th>공급업체</th>
+              <th class="num">발주수량</th>
+              <th>비고</th>
+            </tr>
+          </thead>
+          <tbody id="dataBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script id="material-data" type="application/json">[{"date":"2022-01","materialCode":"MAT-001","materialName":"강판","category":"금속재료","unitPrice":85000,"vendor":"A사","orderQty":200,"note":""},{"date":"2022-01","materialCode":"MAT-002","materialName":"알루미늄판","category":"금속재료","unitPrice":145000,"vendor":"B사","orderQty":150,"note":""},{"date":"2022-01","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":320000,"vendor":"C사","orderQty":80,"note":""},{"date":"2022-01","materialCode":"MAT-004","materialName":"볼베어링","category":"구동부품","unitPrice":28000,"vendor":"A사","orderQty":500,"note":""},{"date":"2022-01","materialCode":"MAT-005","materialName":"유압호스","category":"소모품","unitPrice":15000,"vendor":"D사","orderQty":300,"note":""},{"date":"2022-01","materialCode":"MAT-006","materialName":"센서모듈","category":"전자부품","unitPrice":95000,"vendor":"B사","orderQty":120,"note":""},{"date":"2022-01","materialCode":"MAT-007","materialName":"PCB기판","category":"전자부품","unitPrice":75000,"vendor":"C사","orderQty":200,"note":""},{"date":"2022-01","materialCode":"MAT-008","materialName":"냉각유","category":"소모품","unitPrice":12000,"vendor":"D사","orderQty":500,"note":""},{"date":"2022-01","materialCode":"MAT-009","materialName":"절삭유","category":"소모품","unitPrice":8500,"vendor":"E사","orderQty":600,"note":""},{"date":"2022-01","materialCode":"MAT-010","materialName":"용접봉","category":"소모품","unitPrice":3200,"vendor":"A사","orderQty":1000,"note":""},{"date":"2022-01","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":580000,"vendor":"B사","orderQty":50,"note":""},{"date":"2022-01","materialCode":"MAT-012","materialName":"광학렌즈","category":"전자부품","unitPrice":250000,"vendor":"C사","orderQty":30,"note":""},{"date":"2022-01","materialCode":"MAT-013","materialName":"정밀기어","category":"구동부품","unitPrice":95000,"vendor":"D사","orderQty":100,"note":""},{"date":"2022-01","materialCode":"MAT-014","materialName":"서보모터","category":"구동부품","unitPrice":320000,"vendor":"E사","orderQty":40,"note":""},{"date":"2022-01","materialCode":"MAT-015","materialName":"전력케이블","category":"소모품","unitPrice":18000,"vendor":"A사","orderQty":400,"note":""},{"date":"2022-02","materialCode":"MAT-001","materialName":"강판","category":"금속재료","unitPrice":84000,"vendor":"A사","orderQty":220,"note":""},{"date":"2022-02","materialCode":"MAT-002","materialName":"알루미늄판","category":"금속재료","unitPrice":143000,"vendor":"B사","orderQty":160,"note":""},{"date":"2022-02","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":325000,"vendor":"C사","orderQty":75,"note":""},{"date":"2022-02","materialCode":"MAT-004","materialName":"볼베어링","category":"구동부품","unitPrice":28500,"vendor":"A사","orderQty":480,"note":""},{"date":"2022-02","materialCode":"MAT-005","materialName":"유압호스","category":"소모품","unitPrice":15200,"vendor":"D사","orderQty":280,"note":""},{"date":"2022-02","materialCode":"MAT-006","materialName":"센서모듈","category":"전자부품","unitPrice":96000,"vendor":"B사","orderQty":110,"note":""},{"date":"2022-02","materialCode":"MAT-007","materialName":"PCB기판","category":"전자부품","unitPrice":74000,"vendor":"C사","orderQty":190,"note":""},{"date":"2022-02","materialCode":"MAT-008","materialName":"냉각유","category":"소모품","unitPrice":12100,"vendor":"D사","orderQty":510,"note":""},{"date":"2022-02","materialCode":"MAT-009","materialName":"절삭유","category":"소모품","unitPrice":8500,"vendor":"E사","orderQty":580,"note":""},{"date":"2022-02","materialCode":"MAT-010","materialName":"용접봉","category":"소모품","unitPrice":3200,"vendor":"A사","orderQty":950,"note":""},{"date":"2022-02","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":582000,"vendor":"B사","orderQty":48,"note":""},{"date":"2022-02","materialCode":"MAT-012","materialName":"광학렌즈","category":"전자부품","unitPrice":252000,"vendor":"C사","orderQty":28,"note":""},{"date":"2022-02","materialCode":"MAT-013","materialName":"정밀기어","category":"구동부품","unitPrice":96000,"vendor":"D사","orderQty":95,"note":""},{"date":"2022-02","materialCode":"MAT-014","materialName":"서보모터","category":"구동부품","unitPrice":318000,"vendor":"E사","orderQty":42,"note":""},{"date":"2022-02","materialCode":"MAT-015","materialName":"전력케이블","category":"소모품","unitPrice":18200,"vendor":"A사","orderQty":390,"note":""},{"date":"2022-03","materialCode":"MAT-001","materialName":"강판","category":"금속재료","unitPrice":86000,"vendor":"A사","orderQty":210,"note":""},{"date":"2022-03","materialCode":"MAT-002","materialName":"알루미늄판","category":"금속재료","unitPrice":146000,"vendor":"B사","orderQty":155,"note":""},{"date":"2022-03","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":330000,"vendor":"C사","orderQty":82,"note":""},{"date":"2022-03","materialCode":"MAT-004","materialName":"볼베어링","category":"구동부품","unitPrice":28000,"vendor":"A사","orderQty":510,"note":""},{"date":"2022-03","materialCode":"MAT-005","materialName":"유압호스","category":"소모품","unitPrice":15000,"vendor":"D사","orderQty":310,"note":""},{"date":"2022-03","materialCode":"MAT-006","materialName":"센서모듈","category":"전자부품","unitPrice":95500,"vendor":"B사","orderQty":125,"note":""},{"date":"2022-03","materialCode":"MAT-007","materialName":"PCB기판","category":"전자부품","unitPrice":76000,"vendor":"C사","orderQty":205,"note":""},{"date":"2022-03","materialCode":"MAT-008","materialName":"냉각유","category":"소모품","unitPrice":12000,"vendor":"D사","orderQty":490,"note":""},{"date":"2022-03","materialCode":"MAT-009","materialName":"절삭유","category":"소모품","unitPrice":8600,"vendor":"E사","orderQty":620,"note":""},{"date":"2022-03","materialCode":"MAT-010","materialName":"용접봉","category":"소모품","unitPrice":3300,"vendor":"A사","orderQty":1050,"note":""},{"date":"2022-03","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":585000,"vendor":"B사","orderQty":52,"note":""},{"date":"2022-03","materialCode":"MAT-012","materialName":"광학렌즈","category":"전자부품","unitPrice":250000,"vendor":"C사","orderQty":32,"note":""},{"date":"2022-03","materialCode":"MAT-013","materialName":"정밀기어","category":"구동부품","unitPrice":97000,"vendor":"D사","orderQty":102,"note":""},{"date":"2022-03","materialCode":"MAT-014","materialName":"서보모터","category":"구동부품","unitPrice":322000,"vendor":"E사","orderQty":38,"note":""},{"date":"2022-03","materialCode":"MAT-015","materialName":"전력케이블","category":"소모품","unitPrice":18000,"vendor":"A사","orderQty":420,"note":""},{"date":"2022-06","materialCode":"MAT-001","materialName":"강판","category":"금속재료","unitPrice":87000,"vendor":"A사","orderQty":200,"note":""},{"date":"2022-06","materialCode":"MAT-002","materialName":"알루미늄판","category":"금속재료","unitPrice":148000,"vendor":"B사","orderQty":145,"note":""},{"date":"2022-06","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":338000,"vendor":"C사","orderQty":78,"note":""},{"date":"2022-06","materialCode":"MAT-004","materialName":"볼베어링","category":"구동부품","unitPrice":29000,"vendor":"A사","orderQty":490,"note":""},{"date":"2022-06","materialCode":"MAT-005","materialName":"유압호스","category":"소모품","unitPrice":15500,"vendor":"D사","orderQty":295,"note":""},{"date":"2022-06","materialCode":"MAT-006","materialName":"센서모듈","category":"전자부품","unitPrice":97000,"vendor":"B사","orderQty":115,"note":""},{"date":"2022-06","materialCode":"MAT-007","materialName":"PCB기판","category":"전자부품","unitPrice":77000,"vendor":"C사","orderQty":195,"note":""},{"date":"2022-06","materialCode":"MAT-008","materialName":"냉각유","category":"소모품","unitPrice":12500,"vendor":"D사","orderQty":520,"note":""},{"date":"2022-06","materialCode":"MAT-009","materialName":"절삭유","category":"소모품","unitPrice":8700,"vendor":"E사","orderQty":605,"note":""},{"date":"2022-06","materialCode":"MAT-010","materialName":"용접봉","category":"소모품","unitPrice":3300,"vendor":"A사","orderQty":980,"note":""},{"date":"2022-06","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":592000,"vendor":"B사","orderQty":55,"note":""},{"date":"2022-06","materialCode":"MAT-012","materialName":"광학렌즈","category":"전자부품","unitPrice":255000,"vendor":"C사","orderQty":29,"note":""},{"date":"2022-06","materialCode":"MAT-013","materialName":"정밀기어","category":"구동부품","unitPrice":98000,"vendor":"D사","orderQty":98,"note":""},{"date":"2022-06","materialCode":"MAT-014","materialName":"서보모터","category":"구동부품","unitPrice":325000,"vendor":"E사","orderQty":41,"note":""},{"date":"2022-06","materialCode":"MAT-015","materialName":"전력케이블","category":"소모품","unitPrice":18500,"vendor":"A사","orderQty":405,"note":""},{"date":"2022-09","materialCode":"MAT-001","materialName":"강판","category":"금속재료","unitPrice":88000,"vendor":"A사","orderQty":215,"note":""},{"date":"2022-09","materialCode":"MAT-002","materialName":"알루미늄판","category":"금속재료","unitPrice":149000,"vendor":"B사","orderQty":158,"note":""},{"date":"2022-09","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":345000,"vendor":"C사","orderQty":85,"note":""},{"date":"2022-09","materialCode":"MAT-004","materialName":"볼베어링","category":"구동부품","unitPrice":29500,"vendor":"A사","orderQty":505,"note":""},{"date":"2022-09","materialCode":"MAT-005","materialName":"유압호스","category":"소모품","unitPrice":15800,"vendor":"D사","orderQty":305,"note":""},{"date":"2022-09","materialCode":"MAT-006","materialName":"센서모듈","category":"전자부품","unitPrice":98000,"vendor":"B사","orderQty":118,"note":""},{"date":"2022-09","materialCode":"MAT-007","materialName":"PCB기판","category":"전자부품","unitPrice":78000,"vendor":"C사","orderQty":208,"note":""},{"date":"2022-09","materialCode":"MAT-008","materialName":"냉각유","category":"소모품","unitPrice":12300,"vendor":"D사","orderQty":498,"note":""},{"date":"2022-09","materialCode":"MAT-009","materialName":"절삭유","category":"소모품","unitPrice":8700,"vendor":"E사","orderQty":612,"note":""},{"date":"2022-09","materialCode":"MAT-010","materialName":"용접봉","category":"소모품","unitPrice":3350,"vendor":"A사","orderQty":1020,"note":""},{"date":"2022-09","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":598000,"vendor":"B사","orderQty":50,"note":""},{"date":"2022-09","materialCode":"MAT-012","materialName":"광학렌즈","category":"전자부품","unitPrice":256000,"vendor":"C사","orderQty":31,"note":""},{"date":"2022-09","materialCode":"MAT-013","materialName":"정밀기어","category":"구동부품","unitPrice":99000,"vendor":"D사","orderQty":105,"note":""},{"date":"2022-09","materialCode":"MAT-014","materialName":"서보모터","category":"구동부품","unitPrice":328000,"vendor":"E사","orderQty":39,"note":""},{"date":"2022-09","materialCode":"MAT-015","materialName":"전력케이블","category":"소모품","unitPrice":18800,"vendor":"A사","orderQty":415,"note":""},{"date":"2022-12","materialCode":"MAT-001","materialName":"강판","category":"금속재료","unitPrice":90000,"vendor":"A사","orderQty":190,"note":""},{"date":"2022-12","materialCode":"MAT-002","materialName":"알루미늄판","category":"금속재료","unitPrice":151000,"vendor":"B사","orderQty":140,"note":""},{"date":"2022-12","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":352000,"vendor":"C사","orderQty":72,"note":""},{"date":"2022-12","materialCode":"MAT-004","materialName":"볼베어링","category":"구동부품","unitPrice":29000,"vendor":"A사","orderQty":460,"note":""},{"date":"2022-12","materialCode":"MAT-005","materialName":"유압호스","category":"소모품","unitPrice":16000,"vendor":"D사","orderQty":280,"note":""},{"date":"2022-12","materialCode":"MAT-006","materialName":"센서모듈","category":"전자부품","unitPrice":98500,"vendor":"B사","orderQty":105,"note":""},{"date":"2022-12","materialCode":"MAT-007","materialName":"PCB기판","category":"전자부품","unitPrice":78500,"vendor":"C사","orderQty":185,"note":""},{"date":"2022-12","materialCode":"MAT-008","materialName":"냉각유","category":"소모품","unitPrice":12400,"vendor":"D사","orderQty":480,"note":""},{"date":"2022-12","materialCode":"MAT-009","materialName":"절삭유","category":"소모품","unitPrice":8800,"vendor":"E사","orderQty":590,"note":""},{"date":"2022-12","materialCode":"MAT-010","materialName":"용접봉","category":"소모품","unitPrice":3350,"vendor":"A사","orderQty":920,"note":""},{"date":"2022-12","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":605000,"vendor":"B사","orderQty":45,"note":""},{"date":"2022-12","materialCode":"MAT-012","materialName":"광학렌즈","category":"전자부품","unitPrice":258000,"vendor":"C사","orderQty":27,"note":""},{"date":"2022-12","materialCode":"MAT-013","materialName":"정밀기어","category":"구동부품","unitPrice":100000,"vendor":"D사","orderQty":92,"note":""},{"date":"2022-12","materialCode":"MAT-014","materialName":"서보모터","category":"구동부품","unitPrice":330000,"vendor":"E사","orderQty":36,"note":""},{"date":"2022-12","materialCode":"MAT-015","materialName":"전력케이블","category":"소모품","unitPrice":19000,"vendor":"A사","orderQty":395,"note":""},{"date":"2023-01","materialCode":"MAT-001","materialName":"강판","category":"금속재료","unitPrice":91000,"vendor":"A사","orderQty":205,"note":""},{"date":"2023-01","materialCode":"MAT-002","materialName":"알루미늄판","category":"금속재료","unitPrice":152000,"vendor":"B사","orderQty":152,"note":""},{"date":"2023-01","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":368000,"vendor":"C사","orderQty":80,"note":"가격인상"},{"date":"2023-01","materialCode":"MAT-004","materialName":"볼베어링","category":"구동부품","unitPrice":30000,"vendor":"A사","orderQty":495,"note":""},{"date":"2023-01","materialCode":"MAT-005","materialName":"유압호스","category":"소모품","unitPrice":16200,"vendor":"D사","orderQty":295,"note":""},{"date":"2023-01","materialCode":"MAT-006","materialName":"센서모듈","category":"전자부품","unitPrice":99000,"vendor":"B사","orderQty":112,"note":""},{"date":"2023-01","materialCode":"MAT-007","materialName":"PCB기판","category":"전자부품","unitPrice":79000,"vendor":"C사","orderQty":198,"note":""},{"date":"2023-01","materialCode":"MAT-008","materialName":"냉각유","category":"소모품","unitPrice":12600,"vendor":"D사","orderQty":505,"note":""},{"date":"2023-01","materialCode":"MAT-009","materialName":"절삭유","category":"소모품","unitPrice":8900,"vendor":"E사","orderQty":598,"note":""},{"date":"2023-01","materialCode":"MAT-010","materialName":"용접봉","category":"소모품","unitPrice":3400,"vendor":"A사","orderQty":975,"note":""},{"date":"2023-01","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":625000,"vendor":"B사","orderQty":52,"note":"가격인상"},{"date":"2023-01","materialCode":"MAT-012","materialName":"광학렌즈","category":"전자부품","unitPrice":260000,"vendor":"C사","orderQty":30,"note":""},{"date":"2023-01","materialCode":"MAT-013","materialName":"정밀기어","category":"구동부품","unitPrice":101000,"vendor":"D사","orderQty":98,"note":""},{"date":"2023-01","materialCode":"MAT-014","materialName":"서보모터","category":"구동부품","unitPrice":335000,"vendor":"E사","orderQty":42,"note":""},{"date":"2023-01","materialCode":"MAT-015","materialName":"전력케이블","category":"소모품","unitPrice":19200,"vendor":"A사","orderQty":408,"note":""},{"date":"2023-03","materialCode":"MAT-001","materialName":"강판","category":"금속재료","unitPrice":93000,"vendor":"A사","orderQty":212,"note":""},{"date":"2023-03","materialCode":"MAT-002","materialName":"알루미늄판","category":"금속재료","unitPrice":155000,"vendor":"B사","orderQty":148,"note":""},{"date":"2023-03","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":382000,"vendor":"C사","orderQty":78,"note":"가격인상"},{"date":"2023-03","materialCode":"MAT-004","materialName":"볼베어링","category":"구동부품","unitPrice":30500,"vendor":"A사","orderQty":508,"note":""},{"date":"2023-03","materialCode":"MAT-005","materialName":"유압호스","category":"소모품","unitPrice":16000,"vendor":"D사","orderQty":308,"note":""},{"date":"2023-03","materialCode":"MAT-006","materialName":"센서모듈","category":"전자부품","unitPrice":100000,"vendor":"B사","orderQty":122,"note":""},{"date":"2023-03","materialCode":"MAT-007","materialName":"PCB기판","category":"전자부품","unitPrice":80000,"vendor":"C사","orderQty":202,"note":""},{"date":"2023-03","materialCode":"MAT-008","materialName":"냉각유","category":"소모품","unitPrice":12500,"vendor":"D사","orderQty":495,"note":""},{"date":"2023-03","materialCode":"MAT-009","materialName":"절삭유","category":"소모품","unitPrice":8900,"vendor":"E사","orderQty":615,"note":""},{"date":"2023-03","materialCode":"MAT-010","materialName":"용접봉","category":"소모품","unitPrice":3400,"vendor":"A사","orderQty":1000,"note":""},{"date":"2023-03","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":648000,"vendor":"B사","orderQty":50,"note":"가격인상"},{"date":"2023-03","materialCode":"MAT-012","materialName":"광학렌즈","category":"전자부품","unitPrice":262000,"vendor":"C사","orderQty":32,"note":""},{"date":"2023-03","materialCode":"MAT-013","materialName":"정밀기어","category":"구동부품","unitPrice":102000,"vendor":"D사","orderQty":102,"note":""},{"date":"2023-03","materialCode":"MAT-014","materialName":"서보모터","category":"구동부품","unitPrice":338000,"vendor":"E사","orderQty":40,"note":""},{"date":"2023-03","materialCode":"MAT-015","materialName":"전력케이블","category":"소모품","unitPrice":19500,"vendor":"A사","orderQty":418,"note":""},{"date":"2023-05","materialCode":"MAT-001","materialName":"강판","category":"금속재료","unitPrice":94000,"vendor":"A사","orderQty":208,"note":""},{"date":"2023-05","materialCode":"MAT-002","materialName":"알루미늄판","category":"금속재료","unitPrice":156000,"vendor":"B사","orderQty":155,"note":""},{"date":"2023-05","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":398000,"vendor":"C사","orderQty":82,"note":"공급불안정"},{"date":"2023-05","materialCode":"MAT-004","materialName":"볼베어링","category":"구동부품","unitPrice":31000,"vendor":"A사","orderQty":515,"note":""},{"date":"2023-05","materialCode":"MAT-005","materialName":"유압호스","category":"소모품","unitPrice":16500,"vendor":"D사","orderQty":298,"note":""},{"date":"2023-05","materialCode":"MAT-006","materialName":"센서모듈","category":"전자부품","unitPrice":101500,"vendor":"B사","orderQty":118,"note":""},{"date":"2023-05","materialCode":"MAT-007","materialName":"PCB기판","category":"전자부품","unitPrice":81000,"vendor":"C사","orderQty":195,"note":""},{"date":"2023-05","materialCode":"MAT-008","materialName":"냉각유","category":"소모품","unitPrice":12800,"vendor":"D사","orderQty":512,"note":""},{"date":"2023-05","materialCode":"MAT-009","materialName":"절삭유","category":"소모품","unitPrice":9000,"vendor":"E사","orderQty":608,"note":""},{"date":"2023-05","materialCode":"MAT-010","materialName":"용접봉","category":"소모품","unitPrice":3450,"vendor":"A사","orderQty":988,"note":""},{"date":"2023-05","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":665000,"vendor":"B사","orderQty":48,"note":"가격인상"},{"date":"2023-05","materialCode":"MAT-012","materialName":"광학렌즈","category":"전자부품","unitPrice":265000,"vendor":"C사","orderQty":28,"note":""},{"date":"2023-05","materialCode":"MAT-013","materialName":"정밀기어","category":"구동부품","unitPrice":103000,"vendor":"D사","orderQty":100,"note":""},{"date":"2023-05","materialCode":"MAT-014","materialName":"서보모터","category":"구동부품","unitPrice":342000,"vendor":"E사","orderQty":38,"note":""},{"date":"2023-05","materialCode":"MAT-015","materialName":"전력케이블","category":"소모품","unitPrice":19800,"vendor":"A사","orderQty":412,"note":""},{"date":"2023-07","materialCode":"MAT-001","materialName":"강판","category":"금속재료","unitPrice":97000,"vendor":"A사","orderQty":195,"note":""},{"date":"2023-07","materialCode":"MAT-002","materialName":"알루미늄판","category":"금속재료","unitPrice":158000,"vendor":"B사","orderQty":142,"note":""},{"date":"2023-07","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":435000,"vendor":"C사","orderQty":70,"note":"공급불안정"},{"date":"2023-07","materialCode":"MAT-004","materialName":"볼베어링","category":"구동부품","unitPrice":31500,"vendor":"A사","orderQty":492,"note":""},{"date":"2023-07","materialCode":"MAT-005","materialName":"유압호스","category":"소모품","unitPrice":16800,"vendor":"D사","orderQty":285,"note":""},{"date":"2023-07","materialCode":"MAT-006","materialName":"센서모듈","category":"전자부품","unitPrice":103000,"vendor":"B사","orderQty":108,"note":""},{"date":"2023-07","materialCode":"MAT-007","materialName":"PCB기판","category":"전자부품","unitPrice":82500,"vendor":"C사","orderQty":188,"note":""},{"date":"2023-07","materialCode":"MAT-008","materialName":"냉각유","category":"소모품","unitPrice":13200,"vendor":"D사","orderQty":525,"note":""},{"date":"2023-07","materialCode":"MAT-009","materialName":"절삭유","category":"소모품","unitPrice":9100,"vendor":"E사","orderQty":600,"note":""},{"date":"2023-07","materialCode":"MAT-010","materialName":"용접봉","category":"소모품","unitPrice":3500,"vendor":"A사","orderQty":965,"note":""},{"date":"2023-07","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":710000,"vendor":"B사","orderQty":55,"note":"공급불안정"},{"date":"2023-07","materialCode":"MAT-012","materialName":"광학렌즈","category":"전자부품","unitPrice":268000,"vendor":"C사","orderQty":30,"note":""},{"date":"2023-07","materialCode":"MAT-013","materialName":"정밀기어","category":"구동부품","unitPrice":105000,"vendor":"D사","orderQty":108,"note":""},{"date":"2023-07","materialCode":"MAT-014","materialName":"서보모터","category":"구동부품","unitPrice":348000,"vendor":"E사","orderQty":42,"note":""},{"date":"2023-07","materialCode":"MAT-015","materialName":"전력케이블","category":"소모품","unitPrice":20200,"vendor":"A사","orderQty":405,"note":""},{"date":"2023-08","materialCode":"MAT-001","materialName":"강판","category":"금속재료","unitPrice":98000,"vendor":"A사","orderQty":200,"note":""},{"date":"2023-08","materialCode":"MAT-002","materialName":"알루미늄판","category":"금속재료","unitPrice":159000,"vendor":"B사","orderQty":148,"note":""},{"date":"2023-08","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":462000,"vendor":"C사","orderQty":68,"note":"공급불안정"},{"date":"2023-08","materialCode":"MAT-004","materialName":"볼베어링","category":"구동부품","unitPrice":32000,"vendor":"A사","orderQty":498,"note":""},{"date":"2023-08","materialCode":"MAT-005","materialName":"유압호스","category":"소모품","unitPrice":17000,"vendor":"D사","orderQty":290,"note":""},{"date":"2023-08","materialCode":"MAT-006","materialName":"센서모듈","category":"전자부품","unitPrice":104000,"vendor":"B사","orderQty":112,"note":""},{"date":"2023-08","materialCode":"MAT-007","materialName":"PCB기판","category":"전자부품","unitPrice":83000,"vendor":"C사","orderQty":192,"note":""},{"date":"2023-08","materialCode":"MAT-008","materialName":"냉각유","category":"소모품","unitPrice":13500,"vendor":"D사","orderQty":520,"note":""},{"date":"2023-08","materialCode":"MAT-009","materialName":"절삭유","category":"소모품","unitPrice":9200,"vendor":"E사","orderQty":610,"note":""},{"date":"2023-08","materialCode":"MAT-010","materialName":"용접봉","category":"소모품","unitPrice":3550,"vendor":"A사","orderQty":970,"note":""},{"date":"2023-08","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":745000,"vendor":"B사","orderQty":52,"note":"공급불안정"},{"date":"2023-08","materialCode":"MAT-012","materialName":"광학렌즈","category":"전자부품","unitPrice":270000,"vendor":"C사","orderQty":28,"note":""},{"date":"2023-08","materialCode":"MAT-013","materialName":"정밀기어","category":"구동부품","unitPrice":106000,"vendor":"D사","orderQty":104,"note":""},{"date":"2023-08","materialCode":"MAT-014","materialName":"서보모터","category":"구동부품","unitPrice":352000,"vendor":"E사","orderQty":40,"note":""},{"date":"2023-08","materialCode":"MAT-015","materialName":"전력케이블","category":"소모품","unitPrice":20500,"vendor":"A사","orderQty":410,"note":"가격인상"},{"date":"2023-10","materialCode":"MAT-001","materialName":"강판","category":"금속재료","unitPrice":99000,"vendor":"A사","orderQty":205,"note":""},{"date":"2023-10","materialCode":"MAT-002","materialName":"알루미늄판","category":"금속재료","unitPrice":160000,"vendor":"B사","orderQty":150,"note":""},{"date":"2023-10","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":450000,"vendor":"C사","orderQty":75,"note":""},{"date":"2023-10","materialCode":"MAT-004","materialName":"볼베어링","category":"구동부품","unitPrice":32000,"vendor":"A사","orderQty":505,"note":""},{"date":"2023-10","materialCode":"MAT-005","materialName":"유압호스","category":"소모품","unitPrice":17200,"vendor":"D사","orderQty":295,"note":""},{"date":"2023-10","materialCode":"MAT-006","materialName":"센서모듈","category":"전자부품","unitPrice":104500,"vendor":"B사","orderQty":115,"note":""},{"date":"2023-10","materialCode":"MAT-007","materialName":"PCB기판","category":"전자부품","unitPrice":83500,"vendor":"C사","orderQty":196,"note":""},{"date":"2023-10","materialCode":"MAT-008","materialName":"냉각유","category":"소모품","unitPrice":13200,"vendor":"D사","orderQty":510,"note":""},{"date":"2023-10","materialCode":"MAT-009","materialName":"절삭유","category":"소모품","unitPrice":9100,"vendor":"E사","orderQty":602,"note":""},{"date":"2023-10","materialCode":"MAT-010","materialName":"용접봉","category":"소모품","unitPrice":3500,"vendor":"A사","orderQty":980,"note":""},{"date":"2023-10","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":730000,"vendor":"B사","orderQty":50,"note":""},{"date":"2023-10","materialCode":"MAT-012","materialName":"광학렌즈","category":"전자부품","unitPrice":272000,"vendor":"C사","orderQty":31,"note":""},{"date":"2023-10","materialCode":"MAT-013","materialName":"정밀기어","category":"구동부품","unitPrice":106000,"vendor":"D사","orderQty":100,"note":""},{"date":"2023-10","materialCode":"MAT-014","materialName":"서보모터","category":"구동부품","unitPrice":355000,"vendor":"E사","orderQty":38,"note":""},{"date":"2023-10","materialCode":"MAT-015","materialName":"전력케이블","category":"소모품","unitPrice":20500,"vendor":"A사","orderQty":400,"note":""},{"date":"2023-12","materialCode":"MAT-001","materialName":"강판","category":"금속재료","unitPrice":100000,"vendor":"A사","orderQty":195,"note":""},{"date":"2023-12","materialCode":"MAT-002","materialName":"알루미늄판","category":"금속재료","unitPrice":162000,"vendor":"B사","orderQty":140,"note":""},{"date":"2023-12","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":442000,"vendor":"C사","orderQty":72,"note":""},{"date":"2023-12","materialCode":"MAT-004","materialName":"볼베어링","category":"구동부품","unitPrice":32500,"vendor":"A사","orderQty":468,"note":""},{"date":"2023-12","materialCode":"MAT-005","materialName":"유압호스","category":"소모품","unitPrice":17500,"vendor":"D사","orderQty":278,"note":""},{"date":"2023-12","materialCode":"MAT-006","materialName":"센서모듈","category":"전자부품","unitPrice":105000,"vendor":"B사","orderQty":108,"note":""},{"date":"2023-12","materialCode":"MAT-007","materialName":"PCB기판","category":"전자부품","unitPrice":84000,"vendor":"C사","orderQty":188,"note":""},{"date":"2023-12","materialCode":"MAT-008","materialName":"냉각유","category":"소모품","unitPrice":13000,"vendor":"D사","orderQty":485,"note":""},{"date":"2023-12","materialCode":"MAT-009","materialName":"절삭유","category":"소모품","unitPrice":9000,"vendor":"E사","orderQty":592,"note":""},{"date":"2023-12","materialCode":"MAT-010","materialName":"용접봉","category":"소모품","unitPrice":3500,"vendor":"A사","orderQty":945,"note":""},{"date":"2023-12","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":718000,"vendor":"B사","orderQty":46,"note":""},{"date":"2023-12","materialCode":"MAT-012","materialName":"광학렌즈","category":"전자부품","unitPrice":272000,"vendor":"C사","orderQty":28,"note":""},{"date":"2023-12","materialCode":"MAT-013","materialName":"정밀기어","category":"구동부품","unitPrice":107000,"vendor":"D사","orderQty":96,"note":""},{"date":"2023-12","materialCode":"MAT-014","materialName":"서보모터","category":"구동부품","unitPrice":358000,"vendor":"E사","orderQty":35,"note":""},{"date":"2023-12","materialCode":"MAT-015","materialName":"전력케이블","category":"소모품","unitPrice":20800,"vendor":"A사","orderQty":392,"note":""},{"date":"2024-01","materialCode":"MAT-001","materialName":"강판","category":"금속재료","unitPrice":102000,"vendor":"A사","orderQty":208,"note":""},{"date":"2024-01","materialCode":"MAT-002","materialName":"알루미늄판","category":"금속재료","unitPrice":164000,"vendor":"B사","orderQty":152,"note":""},{"date":"2024-01","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":448000,"vendor":"C사","orderQty":78,"note":"가격인상"},{"date":"2024-01","materialCode":"MAT-004","materialName":"볼베어링","category":"구동부품","unitPrice":33000,"vendor":"A사","orderQty":498,"note":""},{"date":"2024-01","materialCode":"MAT-005","materialName":"유압호스","category":"소모품","unitPrice":17800,"vendor":"D사","orderQty":292,"note":""},{"date":"2024-01","materialCode":"MAT-006","materialName":"센서모듈","category":"전자부품","unitPrice":106000,"vendor":"B사","orderQty":118,"note":""},{"date":"2024-01","materialCode":"MAT-007","materialName":"PCB기판","category":"전자부품","unitPrice":85000,"vendor":"C사","orderQty":198,"note":""},{"date":"2024-01","materialCode":"MAT-008","materialName":"냉각유","category":"소모품","unitPrice":13200,"vendor":"D사","orderQty":502,"note":""},{"date":"2024-01","materialCode":"MAT-009","materialName":"절삭유","category":"소모품","unitPrice":9200,"vendor":"E사","orderQty":608,"note":""},{"date":"2024-01","materialCode":"MAT-010","materialName":"용접봉","category":"소모품","unitPrice":3600,"vendor":"A사","orderQty":968,"note":""},{"date":"2024-01","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":742000,"vendor":"B사","orderQty":52,"note":"가격인상"},{"date":"2024-01","materialCode":"MAT-012","materialName":"광학렌즈","category":"전자부품","unitPrice":275000,"vendor":"C사","orderQty":30,"note":""},{"date":"2024-01","materialCode":"MAT-013","materialName":"정밀기어","category":"구동부품","unitPrice":108000,"vendor":"D사","orderQty":100,"note":""},{"date":"2024-01","materialCode":"MAT-014","materialName":"서보모터","category":"구동부품","unitPrice":362000,"vendor":"E사","orderQty":40,"note":""},{"date":"2024-01","materialCode":"MAT-015","materialName":"전력케이블","category":"소모품","unitPrice":21000,"vendor":"A사","orderQty":408,"note":""},{"date":"2024-03","materialCode":"MAT-001","materialName":"강판","category":"금속재료","unitPrice":104000,"vendor":"A사","orderQty":212,"note":""},{"date":"2024-03","materialCode":"MAT-002","materialName":"알루미늄판","category":"금속재료","unitPrice":166000,"vendor":"B사","orderQty":148,"note":""},{"date":"2024-03","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":455000,"vendor":"C사","orderQty":80,"note":""},{"date":"2024-03","materialCode":"MAT-004","materialName":"볼베어링","category":"구동부품","unitPrice":33500,"vendor":"A사","orderQty":510,"note":""},{"date":"2024-03","materialCode":"MAT-005","materialName":"유압호스","category":"소모품","unitPrice":18000,"vendor":"D사","orderQty":302,"note":""},{"date":"2024-03","materialCode":"MAT-006","materialName":"센서모듈","category":"전자부품","unitPrice":107000,"vendor":"B사","orderQty":122,"note":""},{"date":"2024-03","materialCode":"MAT-007","materialName":"PCB기판","category":"전자부품","unitPrice":85500,"vendor":"C사","orderQty":202,"note":""},{"date":"2024-03","materialCode":"MAT-008","materialName":"냉각유","category":"소모품","unitPrice":13500,"vendor":"D사","orderQty":495,"note":""},{"date":"2024-03","materialCode":"MAT-009","materialName":"절삭유","category":"소모품","unitPrice":9300,"vendor":"E사","orderQty":618,"note":""},{"date":"2024-03","materialCode":"MAT-010","materialName":"용접봉","category":"소모품","unitPrice":3600,"vendor":"A사","orderQty":988,"note":""},{"date":"2024-03","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":758000,"vendor":"B사","orderQty":50,"note":"가격인상"},{"date":"2024-03","materialCode":"MAT-012","materialName":"광학렌즈","category":"전자부품","unitPrice":278000,"vendor":"C사","orderQty":31,"note":""},{"date":"2024-03","materialCode":"MAT-013","materialName":"정밀기어","category":"구동부품","unitPrice":109000,"vendor":"D사","orderQty":104,"note":""},{"date":"2024-03","materialCode":"MAT-014","materialName":"서보모터","category":"구동부품","unitPrice":365000,"vendor":"E사","orderQty":38,"note":""},{"date":"2024-03","materialCode":"MAT-015","materialName":"전력케이블","category":"소모품","unitPrice":21300,"vendor":"A사","orderQty":418,"note":""},{"date":"2024-06","materialCode":"MAT-001","materialName":"강판","category":"금속재료","unitPrice":106000,"vendor":"A사","orderQty":200,"note":""},{"date":"2024-06","materialCode":"MAT-002","materialName":"알루미늄판","category":"금속재료","unitPrice":168000,"vendor":"B사","orderQty":145,"note":""},{"date":"2024-06","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":462000,"vendor":"C사","orderQty":76,"note":"공급불안정"},{"date":"2024-06","materialCode":"MAT-004","materialName":"볼베어링","category":"구동부품","unitPrice":34000,"vendor":"A사","orderQty":490,"note":""},{"date":"2024-06","materialCode":"MAT-005","materialName":"유압호스","category":"소모품","unitPrice":18200,"vendor":"D사","orderQty":288,"note":""},{"date":"2024-06","materialCode":"MAT-006","materialName":"센서모듈","category":"전자부품","unitPrice":108000,"vendor":"B사","orderQty":112,"note":""},{"date":"2024-06","materialCode":"MAT-007","materialName":"PCB기판","category":"전자부품","unitPrice":86000,"vendor":"C사","orderQty":195,"note":""},{"date":"2024-06","materialCode":"MAT-008","materialName":"냉각유","category":"소모품","unitPrice":13800,"vendor":"D사","orderQty":518,"note":""},{"date":"2024-06","materialCode":"MAT-009","materialName":"절삭유","category":"소모품","unitPrice":9400,"vendor":"E사","orderQty":605,"note":""},{"date":"2024-06","materialCode":"MAT-010","materialName":"용접봉","category":"소모품","unitPrice":3650,"vendor":"A사","orderQty":972,"note":""},{"date":"2024-06","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":778000,"vendor":"B사","orderQty":55,"note":""},{"date":"2024-06","materialCode":"MAT-012","materialName":"광학렌즈","category":"전자부품","unitPrice":280000,"vendor":"C사","orderQty":29,"note":""},{"date":"2024-06","materialCode":"MAT-013","materialName":"정밀기어","category":"구동부품","unitPrice":110000,"vendor":"D사","orderQty":108,"note":""},{"date":"2024-06","materialCode":"MAT-014","materialName":"서보모터","category":"구동부품","unitPrice":370000,"vendor":"E사","orderQty":42,"note":""},{"date":"2024-06","materialCode":"MAT-015","materialName":"전력케이블","category":"소모품","unitPrice":21500,"vendor":"A사","orderQty":405,"note":""},{"date":"2024-09","materialCode":"MAT-001","materialName":"강판","category":"금속재료","unitPrice":108000,"vendor":"A사","orderQty":215,"note":""},{"date":"2024-09","materialCode":"MAT-002","materialName":"알루미늄판","category":"금속재료","unitPrice":170000,"vendor":"B사","orderQty":155,"note":""},{"date":"2024-09","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":468000,"vendor":"C사","orderQty":82,"note":""},{"date":"2024-09","materialCode":"MAT-004","materialName":"볼베어링","category":"구동부품","unitPrice":34500,"vendor":"A사","orderQty":508,"note":""},{"date":"2024-09","materialCode":"MAT-005","materialName":"유압호스","category":"소모품","unitPrice":18500,"vendor":"D사","orderQty":298,"note":""},{"date":"2024-09","materialCode":"MAT-006","materialName":"센서모듈","category":"전자부품","unitPrice":109000,"vendor":"B사","orderQty":120,"note":""},{"date":"2024-09","materialCode":"MAT-007","materialName":"PCB기판","category":"전자부품","unitPrice":87000,"vendor":"C사","orderQty":205,"note":""},{"date":"2024-09","materialCode":"MAT-008","materialName":"냉각유","category":"소모품","unitPrice":14000,"vendor":"D사","orderQty":512,"note":""},{"date":"2024-09","materialCode":"MAT-009","materialName":"절삭유","category":"소모품","unitPrice":9500,"vendor":"E사","orderQty":615,"note":""},{"date":"2024-09","materialCode":"MAT-010","materialName":"용접봉","category":"소모품","unitPrice":3700,"vendor":"A사","orderQty":982,"note":""},{"date":"2024-09","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":795000,"vendor":"B사","orderQty":50,"note":""},{"date":"2024-09","materialCode":"MAT-012","materialName":"광학렌즈","category":"전자부품","unitPrice":282000,"vendor":"C사","orderQty":32,"note":""},{"date":"2024-09","materialCode":"MAT-013","materialName":"정밀기어","category":"구동부품","unitPrice":111000,"vendor":"D사","orderQty":102,"note":""},{"date":"2024-09","materialCode":"MAT-014","materialName":"서보모터","category":"구동부품","unitPrice":375000,"vendor":"E사","orderQty":39,"note":""},{"date":"2024-09","materialCode":"MAT-015","materialName":"전력케이블","category":"소모품","unitPrice":21800,"vendor":"A사","orderQty":412,"note":""},{"date":"2024-12","materialCode":"MAT-001","materialName":"강판","category":"금속재료","unitPrice":110000,"vendor":"A사","orderQty":198,"note":""},{"date":"2024-12","materialCode":"MAT-002","materialName":"알루미늄판","category":"금속재료","unitPrice":172000,"vendor":"B사","orderQty":142,"note":""},{"date":"2024-12","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":475000,"vendor":"C사","orderQty":74,"note":"가격인상"},{"date":"2024-12","materialCode":"MAT-004","materialName":"볼베어링","category":"구동부품","unitPrice":35000,"vendor":"A사","orderQty":472,"note":""},{"date":"2024-12","materialCode":"MAT-005","materialName":"유압호스","category":"소모품","unitPrice":18800,"vendor":"D사","orderQty":282,"note":""},{"date":"2024-12","materialCode":"MAT-006","materialName":"센서모듈","category":"전자부품","unitPrice":110000,"vendor":"B사","orderQty":108,"note":""},{"date":"2024-12","materialCode":"MAT-007","materialName":"PCB기판","category":"전자부품","unitPrice":88000,"vendor":"C사","orderQty":188,"note":""},{"date":"2024-12","materialCode":"MAT-008","materialName":"냉각유","category":"소모품","unitPrice":14200,"vendor":"D사","orderQty":488,"note":""},{"date":"2024-12","materialCode":"MAT-009","materialName":"절삭유","category":"소모품","unitPrice":9600,"vendor":"E사","orderQty":598,"note":""},{"date":"2024-12","materialCode":"MAT-010","materialName":"용접봉","category":"소모품","unitPrice":3750,"vendor":"A사","orderQty":952,"note":""},{"date":"2024-12","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":812000,"vendor":"B사","orderQty":48,"note":"가격인상"},{"date":"2024-12","materialCode":"MAT-012","materialName":"광학렌즈","category":"전자부품","unitPrice":285000,"vendor":"C사","orderQty":28,"note":""},{"date":"2024-12","materialCode":"MAT-013","materialName":"정밀기어","category":"구동부품","unitPrice":112000,"vendor":"D사","orderQty":98,"note":""},{"date":"2024-12","materialCode":"MAT-014","materialName":"서보모터","category":"구동부품","unitPrice":380000,"vendor":"E사","orderQty":36,"note":""},{"date":"2024-12","materialCode":"MAT-015","materialName":"전력케이블","category":"소모품","unitPrice":22000,"vendor":"A사","orderQty":398,"note":""},{"date":"2023-02","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":372000,"vendor":"C사","orderQty":77,"note":"가격인상"},{"date":"2023-02","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":630000,"vendor":"B사","orderQty":50,"note":"가격인상"},{"date":"2023-04","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":388000,"vendor":"C사","orderQty":80,"note":""},{"date":"2023-04","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":652000,"vendor":"B사","orderQty":51,"note":""},{"date":"2023-06","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":415000,"vendor":"C사","orderQty":74,"note":"공급불안정"},{"date":"2023-06","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":685000,"vendor":"B사","orderQty":54,"note":"공급불안정"},{"date":"2023-09","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":455000,"vendor":"C사","orderQty":76,"note":""},{"date":"2023-09","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":722000,"vendor":"B사","orderQty":50,"note":""},{"date":"2023-11","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":445000,"vendor":"C사","orderQty":73,"note":""},{"date":"2023-11","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":715000,"vendor":"B사","orderQty":47,"note":""},{"date":"2024-02","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":450000,"vendor":"C사","orderQty":79,"note":""},{"date":"2024-02","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":748000,"vendor":"B사","orderQty":52,"note":"가격인상"},{"date":"2024-04","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":458000,"vendor":"C사","orderQty":77,"note":""},{"date":"2024-04","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":762000,"vendor":"B사","orderQty":50,"note":""},{"date":"2024-05","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":460000,"vendor":"C사","orderQty":80,"note":""},{"date":"2024-05","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":770000,"vendor":"B사","orderQty":53,"note":""},{"date":"2024-07","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":465000,"vendor":"C사","orderQty":75,"note":""},{"date":"2024-07","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":782000,"vendor":"B사","orderQty":50,"note":""},{"date":"2024-08","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":468000,"vendor":"C사","orderQty":78,"note":""},{"date":"2024-08","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":788000,"vendor":"B사","orderQty":52,"note":""},{"date":"2024-10","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":470000,"vendor":"C사","orderQty":76,"note":""},{"date":"2024-10","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":800000,"vendor":"B사","orderQty":49,"note":"가격인상"},{"date":"2024-11","materialCode":"MAT-003","materialName":"구리선","category":"금속재료","unitPrice":472000,"vendor":"C사","orderQty":74,"note":""},{"date":"2024-11","materialCode":"MAT-011","materialName":"특수합금","category":"금속재료","unitPrice":806000,"vendor":"B사","orderQty":50,"note":""},{"date":"2023-07","materialCode":"MAT-001","materialName":"강판","category":"금속재료","unitPrice":97000,"vendor":"D사","orderQty":180,"note":""},{"date":"2023-07","materialCode":"MAT-001","materialName":"강판","category":"금속재료","unitPrice":101000,"vendor":"E사","orderQty":160,"note":"가격인상"},{"date":"2023-07","materialCode":"MAT-006","materialName":"센서모듈","category":"전자부품","unitPrice":115000,"vendor":"A사","orderQty":90,"note":""},{"date":"2023-07","materialCode":"MAT-007","materialName":"PCB기판","category":"전자부품","unitPrice":89000,"vendor":"D사","orderQty":180,"note":""},{"date":"2024-06","materialCode":"MAT-004","materialName":"볼베어링","category":"구동부품","unitPrice":36500,"vendor":"C사","orderQty":450,"note":""},{"date":"2024-06","materialCode":"MAT-004","materialName":"볼베어링","category":"구동부품","unitPrice":31000,"vendor":"E사","orderQty":520,"note":""},{"date":"2024-06","materialCode":"MAT-014","materialName":"서보모터","category":"구동부품","unitPrice":395000,"vendor":"A사","orderQty":35,"note":""},{"date":"2024-06","materialCode":"MAT-014","materialName":"서보모터","category":"구동부품","unitPrice":362000,"vendor":"D사","orderQty":38,"note":""}]</script>
+  <script>
+    const rawData = JSON.parse(document.getElementById('material-data').textContent);
+    const data = rawData.map((row) => ({
+      ...row,
+      unitPrice: Number(row.unitPrice),
+      orderQty: Number(row.orderQty)
+    }));
+
+    const won = new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 });
+    const countFmt = new Intl.NumberFormat('ko-KR');
+    const palette = ['#2563eb', '#0f8b62', '#b7791f', '#c2412d', '#6b5dd3', '#0e7490', '#9f1239', '#475569', '#4d7c0f', '#be185d'];
+
+    const filters = {
+      startDate: document.getElementById('startDate'),
+      endDate: document.getElementById('endDate'),
+      category: document.getElementById('categoryFilter'),
+      material: document.getElementById('materialFilter'),
+      vendor: document.getElementById('vendorFilter')
+    };
+
+    const charts = {};
+
+    function uniqueSorted(field) {
+      return [...new Set(data.map((row) => row[field]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
+    }
+
+    function fillSelect(select, values, allLabel) {
+      select.innerHTML = '';
+      const all = document.createElement('option');
+      all.value = 'ALL';
+      all.textContent = allLabel;
+      select.appendChild(all);
+      values.forEach((value) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = value;
+        select.appendChild(option);
+      });
+    }
+
+    function fillDateSelect(select, values) {
+      select.innerHTML = '';
+      values.forEach((value) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = value;
+        select.appendChild(option);
+      });
+    }
+
+    function groupBy(rows, key) {
+      return rows.reduce((acc, row) => {
+        const value = typeof key === 'function' ? key(row) : row[key];
+        if (!acc.has(value)) acc.set(value, []);
+        acc.get(value).push(row);
+        return acc;
+      }, new Map());
+    }
+
+    function average(rows, field) {
+      if (!rows.length) return 0;
+      return rows.reduce((sum, row) => sum + row[field], 0) / rows.length;
+    }
+
+    function filteredRows() {
+      const start = filters.startDate.value;
+      const end = filters.endDate.value;
+      return data.filter((row) => {
+        return row.date >= start &&
+          row.date <= end &&
+          (filters.category.value === 'ALL' || row.category === filters.category.value) &&
+          (filters.material.value === 'ALL' || row.materialName === filters.material.value) &&
+          (filters.vendor.value === 'ALL' || row.vendor === filters.vendor.value);
+      });
+    }
+
+    function buildLineDataset(rows) {
+      const grouped = groupBy(rows, 'date');
+      const labels = [...grouped.keys()].sort();
+      return {
+        labels,
+        values: labels.map((label) => Math.round(average(grouped.get(label), 'unitPrice')))
+      };
+    }
+
+    function buildAverageBy(rows, field) {
+      const grouped = groupBy(rows, field);
+      return [...grouped.entries()]
+        .map(([label, items]) => ({ label, value: Math.round(average(items, 'unitPrice')) }))
+        .sort((a, b) => b.value - a.value);
+    }
+
+    function buildSumBy(rows, field) {
+      const grouped = groupBy(rows, field);
+      return [...grouped.entries()]
+        .map(([label, items]) => ({ label, value: items.reduce((sum, row) => sum + row.orderQty, 0) }))
+        .sort((a, b) => b.value - a.value);
+    }
+
+    function buildVolatility(rows) {
+      const grouped = groupBy(rows, 'materialName');
+      return [...grouped.entries()]
+        .map(([label, items]) => {
+          const prices = items.map((row) => row.unitPrice);
+          const min = Math.min(...prices);
+          const max = Math.max(...prices);
+          return { label, value: max - min, min, max };
+        })
+        .filter((item) => Number.isFinite(item.value))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 10);
+    }
+
+    function chartOptions(valueFormatter) {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (context) => valueFormatter(context.parsed.y ?? context.parsed.x)
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true } },
+          y: { beginAtZero: true, ticks: { callback: (value) => valueFormatter(value) } }
+        }
+      };
+    }
+
+    function createOrUpdateChart(id, config) {
+      if (!window.Chart) return;
+      if (charts[id]) {
+        charts[id].data = config.data;
+        charts[id].options = config.options;
+        charts[id].update();
+        return;
+      }
+      charts[id] = new Chart(document.getElementById(id), config);
+    }
+
+    function updateKpis(rows) {
+      const avgPrice = rows.length ? Math.round(average(rows, 'unitPrice')) : 0;
+      const totalQty = rows.reduce((sum, row) => sum + row.orderQty, 0);
+      const topRow = rows.reduce((best, row) => !best || row.unitPrice > best.unitPrice ? row : best, null);
+      const volatility = buildVolatility(rows)[0];
+
+      document.getElementById('avgPrice').textContent = rows.length ? won.format(avgPrice) : '-';
+      document.getElementById('avgPriceSub').textContent = `${countFmt.format(rows.length)}건 기준`;
+      document.getElementById('totalQty').textContent = rows.length ? countFmt.format(totalQty) : '-';
+      document.getElementById('totalQtySub').textContent = '필터 결과 발주수량 합계';
+      document.getElementById('topMaterial').textContent = topRow ? topRow.materialName : '-';
+      document.getElementById('topMaterialSub').textContent = topRow ? `${topRow.date} · ${won.format(topRow.unitPrice)} · ${topRow.vendor}` : '-';
+      document.getElementById('volatileMaterial').textContent = volatility ? volatility.label : '-';
+      document.getElementById('volatileMaterialSub').textContent = volatility ? `${won.format(volatility.min)} ~ ${won.format(volatility.max)}` : '-';
+    }
+
+    function updateCharts(rows) {
+      const monthly = buildLineDataset(rows);
+      const categories = buildAverageBy(rows, 'category');
+      const vendors = buildSumBy(rows, 'vendor');
+      const volatility = buildVolatility(rows);
+
+      createOrUpdateChart('monthlyChart', {
+        type: 'line',
+        data: {
+          labels: monthly.labels,
+          datasets: [{
+            data: monthly.values,
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37, 99, 235, 0.12)',
+            fill: true,
+            tension: 0.28,
+            pointRadius: 3,
+            pointHoverRadius: 5
+          }]
+        },
+        options: chartOptions((value) => won.format(value))
+      });
+
+      createOrUpdateChart('categoryChart', {
+        type: 'bar',
+        data: {
+          labels: categories.map((item) => item.label),
+          datasets: [{ data: categories.map((item) => item.value), backgroundColor: palette }]
+        },
+        options: chartOptions((value) => won.format(value))
+      });
+
+      createOrUpdateChart('vendorChart', {
+        type: 'bar',
+        data: {
+          labels: vendors.map((item) => item.label),
+          datasets: [{ data: vendors.map((item) => item.value), backgroundColor: '#0f8b62' }]
+        },
+        options: chartOptions((value) => countFmt.format(value))
+      });
+
+      createOrUpdateChart('volatilityChart', {
+        type: 'bar',
+        data: {
+          labels: volatility.map((item) => item.label),
+          datasets: [{ data: volatility.map((item) => item.value), backgroundColor: '#b7791f' }]
+        },
+        options: {
+          ...chartOptions((value) => won.format(value)),
+          indexAxis: 'y',
+          scales: {
+            x: { beginAtZero: true, ticks: { callback: (value) => won.format(value) } },
+            y: { grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    function addCell(tr, value, className) {
+      const td = document.createElement('td');
+      td.textContent = value ?? '';
+      if (className) td.className = className;
+      tr.appendChild(td);
+    }
+
+    function updateTable(rows) {
+      const body = document.getElementById('dataBody');
+      const tableSummary = document.getElementById('tableSummary');
+      body.innerHTML = '';
+      tableSummary.textContent = `${countFmt.format(rows.length)}건 표시`;
+
+      if (!rows.length) {
+        const empty = document.createElement('tr');
+        const td = document.createElement('td');
+        td.className = 'empty';
+        td.colSpan = 8;
+        td.textContent = '조건에 맞는 데이터가 없습니다.';
+        empty.appendChild(td);
+        body.appendChild(empty);
+        return;
+      }
+
+      rows
+        .slice()
+        .sort((a, b) => b.unitPrice - a.unitPrice || b.orderQty - a.orderQty)
+        .forEach((row) => {
+          const tr = document.createElement('tr');
+          addCell(tr, row.date);
+          addCell(tr, row.materialCode);
+          addCell(tr, row.materialName);
+          addCell(tr, row.category);
+          addCell(tr, won.format(row.unitPrice), 'num');
+          addCell(tr, row.vendor);
+          addCell(tr, countFmt.format(row.orderQty), 'num');
+          addCell(tr, row.note || '');
+          body.appendChild(tr);
+        });
+    }
+
+    function updateDashboard() {
+      const rows = filteredRows();
+      updateKpis(rows);
+      updateCharts(rows);
+      updateTable(rows);
+    }
+
+    function init() {
+      const dates = uniqueSorted('date');
+      fillDateSelect(filters.startDate, dates);
+      fillDateSelect(filters.endDate, dates);
+      filters.startDate.value = dates[0];
+      filters.endDate.value = dates[dates.length - 1];
+      fillSelect(filters.category, uniqueSorted('category'), '전체 카테고리');
+      fillSelect(filters.material, uniqueSorted('materialName'), '전체 자재');
+      fillSelect(filters.vendor, uniqueSorted('vendor'), '전체 공급업체');
+      document.getElementById('sourceCount').textContent = countFmt.format(data.length);
+
+      Object.values(filters).forEach((select) => select.addEventListener('change', () => {
+        if (filters.startDate.value > filters.endDate.value) {
+          const tmp = filters.startDate.value;
+          filters.startDate.value = filters.endDate.value;
+          filters.endDate.value = tmp;
+        }
+        updateDashboard();
+      }));
+
+      document.getElementById('resetButton').addEventListener('click', () => {
+        filters.startDate.value = dates[0];
+        filters.endDate.value = dates[dates.length - 1];
+        filters.category.value = 'ALL';
+        filters.material.value = 'ALL';
+        filters.vendor.value = 'ALL';
+        updateDashboard();
+      });
+
+      updateDashboard();
+    }
+
+    init();
+  </script>
+</body>
+</html>
